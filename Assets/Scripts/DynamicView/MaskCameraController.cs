@@ -8,13 +8,13 @@ public class MaskCameraController : MonoBehaviour {
 	
 	public RenderTexture MaskTexture { get; private set; }
 
-	private Camera camera;
+	private Camera maskCamera;
 
 	void Awake() {
 		Instance = this;
 		MaskTexture = new RenderTexture(Screen.width, Screen.height, -1);
 
-		camera = GetComponent<Camera>();
-		camera.targetTexture = MaskTexture;
+		maskCamera = GetComponent<Camera>();
+		maskCamera.targetTexture = MaskTexture;
 	}
 }
