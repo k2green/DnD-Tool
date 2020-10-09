@@ -61,7 +61,7 @@ public class PhysicsGrid {
 	}
 
 	private static Material lineMaterial;
-	private static Material LineMaterial {
+	public static Material LineMaterial {
 		get {
 			if (lineMaterial == null)
 				CreateLineMaterial();
@@ -87,24 +87,12 @@ public class PhysicsGrid {
 		}
 	}
 
-	public void Render(Transform transform, Vector2Int selected, Color lineColor1, Color lineColor2, Color collisionColor, Color selectionColor) {
-		var start = -(Vector2)UnitDimensions * 0.5f;
-		var end = (Vector2)UnitDimensions * 0.5f;
-
-		CreateLineMaterial();
-		// Apply the line material
-		LineMaterial.SetPass(0);
-
-		GL.PushMatrix();
-		// Set transformation matrix for drawing to
-		// match our transform
-		GL.MultMatrix(transform.localToWorldMatrix);
-
+	public void RenderCells(Vector2 start, Vector2Int a, Vector2 b, Color collisionColor, Color selectionColor) {
 		GL.Begin(GL.QUADS);
 
 		for (int y = 0; y < CellCounts.y; y++) {
 			for (int x = 0; x < CellCounts.x; x++) {
-				if (x == selected.x && y == selected.y) {
+				if (x >= a.x && y >= a.y && x <= b.x && y <= b.y) {
 					GL.Color(selectionColor);
 				} else if (HasCollider(x, y)) {
 					GL.Color(collisionColor);
@@ -121,7 +109,9 @@ public class PhysicsGrid {
 		}
 
 		GL.End();
+	}
 
+	public void RenderLines(Vector2 start, Vector2 end, Color lineColor1, Color lineColor2) {
 		// Draw lines
 		GL.Begin(GL.LINES);
 		for (int x = 0; x <= CellCounts.x; x++) {
@@ -136,6 +126,5 @@ public class PhysicsGrid {
 			GL.Vertex3(end.x, start.y + y * CellSize, 0);
 		}
 		GL.End();
-		GL.PopMatrix();
 	}
 }

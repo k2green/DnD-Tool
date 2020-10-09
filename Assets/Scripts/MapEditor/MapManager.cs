@@ -12,14 +12,15 @@ public class MapManager : MonoBehaviour {
 
 	private PhysicsGrid grid;
 	private Camera mainCamera;
-	private GameObject mapObject;
+	private SpriteRenderer mapRenderer;
 
 	public Vector2Int MouseGridPos { get; private set; }
 
 
 	// Start is called before the first frame update
 	void Start() {
-		mapObject = CreateMapObject();
+		mapRenderer = CreateMapObject();
+		UpdateMapSprite();
 
 		grid = new PhysicsGrid(8, mapData.GridCellDimensions, mapData.Position);
 		mainCamera = Camera.main;
@@ -28,7 +29,7 @@ public class MapManager : MonoBehaviour {
 	// Update is called once per frame
 	void Update() {
 		var mousePos = mainCamera.ScreenToWorldPoint(Input.mousePosition);
-		var local = mapObject.transform.InverseTransformPoint(mousePos);
+		var local = mapRenderer.transform.InverseTransformPoint(mousePos);
 		var offset = new Vector2(local.x, local.y) + (Vector2)grid.UnitDimensions * 0.5f;
 		var scaled = offset * grid.CellDivisions;
 
@@ -40,22 +41,36 @@ public class MapManager : MonoBehaviour {
 	}
 
 	private void OnRenderObject() {
-		grid.Render(mapObject.transform, MouseGridPos, gridlineMainColor, gridlineSubColor, collisionColor, selectionColor);
+		var start = -(Vector2)grid.UnitDimensions * 0.5f;
+		var end = (Vector2)grid.UnitDimensions * 0.5f;
+
+		PhysicsGrid.LineMaterial.SetPass(0);
+
+		GL.PushMatrix();
+		// Set transformation matrix for drawing to
+		// match our transform
+		GL.MultMatrix(mapRenderer.transform.localToWorldMatrix);
+
+		grid.RenderCells(start, MouseGridPos, MouseGridPos, collisionColor, selectionColor);
+		grid.RenderLines(start, end, gridlineMainColor, gridlineSubColor);
+
+		GL.PopMatrix();
 	}
 
-	private GameObject CreateMapObject() {
+	private SpriteRenderer CreateMapObject() {
 		var spriteObject = new GameObject("Map");
 		var renderer = spriteObject.AddComponent<SpriteRenderer>();
 
 		spriteObject.transform.position = new Vector3(mapData.Position.x, mapData.Position.y);
-		renderer.sprite = Sprite.Create(
+		spriteObject.isStatic = true;
+
+		return renderer;
+	}
+
+	public void UpdateMapSprite() => mapRenderer.sprite = Sprite.Create(
 				mapData.LoadMapTexture(),
 				mapData.GetRect(),
 				Vector2.one * 0.5f,
 				mapData.PixelsPerUnit
 			);
-		spriteObject.isStatic = true;
-
-		return spriteObject;
-	}
 }
