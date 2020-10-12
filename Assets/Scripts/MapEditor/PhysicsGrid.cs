@@ -20,12 +20,15 @@ public class PhysicsGrid {
 	private byte[] collisionData;
 	public byte[] CollisionData => collisionData;
 
-	public PhysicsGrid(int cellDivisions, Vector2Int unitDimensions, Vector2 position) {
+	public PhysicsGrid(int cellDivisions, Vector2Int unitDimensions, Vector2 position, byte[] data) {
 		this.CellDivisions = cellDivisions;
 		this.UnitDimensions = unitDimensions;
 		this.position = position;
 
-		collisionData = new byte[byteCount];
+		if (data != null && data.Length == byteCount)
+			collisionData = data;
+		else
+			collisionData = new byte[byteCount];
 	}
 
 	public bool IsInRange(Vector2Int pos) => pos.x >= 0 && pos.x < CellCounts.x && pos.y >= 0 && pos.y < CellCounts.y;
@@ -87,28 +90,99 @@ public class PhysicsGrid {
 		}
 	}
 
-	public void RenderCells(Vector2 start, Vector2Int a, Vector2 b, Color collisionColor, Color selectionColor) {
+	public static int Min(int a, int b) {
+		if (a < b)
+			return a;
+		else
+			return b;
+	}
+
+	public static int Max(int a, int b) {
+		if (a < b)
+			return b;
+		else
+			return a;
+	}
+
+	public static (Vector2Int, Vector2Int) GetBounds(Vector2Int a, Vector2Int b) {
+		var min = new Vector2Int(Min(a.x, b.x), Min(a.y, b.y));
+		var max = new Vector2Int(Max(a.x, b.x), Max(a.y, b.y));
+
+		return (min, max);
+	}
+
+	private (Vector2Int, Vector2Int) RescaleBounds((Vector2Int, Vector2Int) ab) {
+		var (a, b) = ab;
+		var min = new Vector2Int(Max(a.x, 0), Max(a.y, 0));
+		var max = new Vector2Int(Min(CellCounts.x - 1, b.x), Min(CellCounts.y - 1, b.y));
+
+		return (min, max);
+	}
+
+	public void FillRange(Vector2Int a, Vector2Int b, bool value = true) {
+		(a, b) = RescaleBounds(GetBounds(a, b));
+
+		for (int y = a.y; y <= b.y; y++) {
+			for (int x = a.x; x <= b.x; x++) {
+				SetHasCollider(x, y, value);
+			}
+		}
+	}
+
+	public void RenderColliderCells(Vector2 start, Color collisionColor) {
 		GL.Begin(GL.QUADS);
 
 		for (int y = 0; y < CellCounts.y; y++) {
 			for (int x = 0; x < CellCounts.x; x++) {
-				if (x >= a.x && y >= a.y && x <= b.x && y <= b.y) {
-					GL.Color(selectionColor);
-				} else if (HasCollider(x, y)) {
+				if (HasCollider(x, y))
 					GL.Color(collisionColor);
-				} else {
+				else
 					continue;
-				}
 
-				var position = start + new Vector2(x, y) * CellSize;
-				GL.Vertex3(position.x, position.y, 0);
-				GL.Vertex3(position.x + CellSize, position.y, 0);
-				GL.Vertex3(position.x + CellSize, position.y + CellSize, 0);
-				GL.Vertex3(position.x, position.y + CellSize, 0);
+				DrawCell(start + new Vector2(x, y) * CellSize);
 			}
 		}
 
 		GL.End();
+	}
+
+	public void RenderHighlightCells(Vector2 start, Vector2Int a, Vector2Int b, Vector2Int mousePos, Color selectionColor1, Color selectionColor2) {
+		GL.Begin(GL.QUADS);
+		(a, b) = RescaleBounds(GetBounds(a, b));
+
+		for (int y = a.y; y <= b.y; y++) {
+			for (int x = a.x; x <= b.x; x++) {
+				GL.Color(selectionColor1);
+
+				DrawCell(start + new Vector2(x, y) * CellSize);
+			}
+		}
+
+		if (IsInRange(mousePos)) {
+			GL.Color(selectionColor2);
+			DrawCell(start + (Vector2)mousePos * CellSize);
+		}
+
+		GL.End();
+	}
+
+	public void FloodFill(Vector2Int pos) {
+		if (!IsInRange(pos) || HasCollider(pos.x, pos.y))
+			return;
+
+		SetHasCollider(pos.x, pos.y, true);
+
+		FloodFill(pos + new Vector2Int(1, 0));
+		FloodFill(pos + new Vector2Int(0, 1));
+		FloodFill(pos + new Vector2Int(-1, 0));
+		FloodFill(pos + new Vector2Int(0, -1));
+	}
+
+	private void DrawCell(Vector2 position) {
+		GL.Vertex3(position.x, position.y, 0);
+		GL.Vertex3(position.x + CellSize, position.y, 0);
+		GL.Vertex3(position.x + CellSize, position.y + CellSize, 0);
+		GL.Vertex3(position.x, position.y + CellSize, 0);
 	}
 
 	public void RenderLines(Vector2 start, Vector2 end, Color lineColor1, Color lineColor2) {
